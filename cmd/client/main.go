@@ -34,9 +34,33 @@ func main() {
 		log.Fatal("Couldn't declare and bind a new queue:", err)
 	}
 
+	state := gamelogic.NewGameState(c_name)
+
+	for {
+		inp := gamelogic.GetInput()
+		if inp[0] == "spawn" {
+			if err := state.CommandSpawn(inp); err != nil {
+				fmt.Println(err)
+			}
+		} else if inp[0] == "move" {
+			if _, err := state.CommandMove(inp); err != nil {
+				fmt.Println(err)
+			}
+		} else if inp[0] == "status" {
+			state.CommandStatus()
+		} else if inp[0] == "help" {
+			gamelogic.PrintClientHelp()
+		} else if inp[0] == "spam" {
+			fmt.Println("Spamming not allowed yet!")
+		} else if inp[0] == "quit" {
+			gamelogic.PrintQuit()
+			break
+		} else {
+			fmt.Println("Unknown command. For help write \"help\"")
+		}
+	}
+
 	signal_ch := make(chan os.Signal, 1)
 	signal.Notify(signal_ch, os.Interrupt)
 	<-signal_ch
-
-	fmt.Println("Application is shutting down...")
 }
