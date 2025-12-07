@@ -1,10 +1,8 @@
 package main
 
 import (
-	"os"
 	"fmt"
 	"log"
-	"os/signal"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
@@ -59,8 +57,4 @@ func main() {
 			fmt.Println("Unknown command. For help write \"help\"")
 		}
 	}
-
-	signal_ch := make(chan os.Signal, 1)
-	signal.Notify(signal_ch, os.Interrupt)
-	<-signal_ch
 }
