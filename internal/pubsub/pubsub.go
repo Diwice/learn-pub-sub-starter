@@ -8,6 +8,14 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type AckType int
+
+const (
+	Ack AckType = iota
+	NackRequeue
+	NackDiscard
+)
+
 type SimpleQueueType struct{
 	durable    bool
 	autoDelete bool
@@ -55,7 +63,7 @@ func DeclareAndBind(conn *amqp.Connection, exchange, queueName, key string, queu
 	return new_ch, new_queue, nil
 }
 
-func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string, queueType SimpleQueueType, handler func(T)) error {
+func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string, queueType SimpleQueueType, handler func(T) AckType) error {
 	new_ch, _, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
 		return err
@@ -76,10 +84,24 @@ func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string
 				continue
 			}
 
-			handler(unm_elem)
+			ack_type := handler(unm_elem)
 
-			if err := elem.Ack(false); err != nil {
-				log.Println("Couldn't acknowledge delivery message:", err)
+			switch ack_type {
+			case Ack:
+				log.Println("Acknowledging.", elem)
+				if err := elem.Ack(false); err != nil {
+					log.Println("Couldn't acknowledge delivery message:", err)
+				}
+			case NackRequeue:
+				log.Println("Requeueing.", elem)
+				if err := elem.Nack(false, true); err != nil {
+					log.Println("Couldn't not acknowledge delivery message (requeue):", err)
+				}
+			case NackDiscard:
+				log.Println("Discarding.", elem)
+				if err := elem.Nack(false, false); err != nil {
+					log.Println("Couldn't not acknowledge delivery message (discard):", err)
+				}
 			}
 		}
 	}()
