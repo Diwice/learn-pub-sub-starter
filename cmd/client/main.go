@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
+	"strconv"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
@@ -51,6 +53,11 @@ func main() {
 
 	for {
 		inp := gamelogic.GetInput()
+
+		if len(inp) == 0 {
+			continue
+		}
+
 		if inp[0] == "spawn" {
 			if err := state.CommandSpawn(inp); err != nil {
 				fmt.Println(err)
@@ -62,7 +69,7 @@ func main() {
 			}
 
 			if err = pubsub.PublishJSON(new_ch, move_exch, move_q_name, move); err != nil {
-				fmt.Println(err)
+				fmt.Println("Couldn't publish move message:", err)
 			}
 
 			fmt.Println("Moved successfully!")
@@ -71,7 +78,26 @@ func main() {
 		} else if inp[0] == "help" {
 			gamelogic.PrintClientHelp()
 		} else if inp[0] == "spam" {
-			fmt.Println("Spamming not allowed yet!")
+			if len(inp) < 2 {
+				fmt.Println("Usage: spam <number>")
+				continue
+			}
+
+			num, err := strconv.Atoi(inp[1])
+			if err != nil {
+				fmt.Println("Invalid number input")
+				continue
+			}
+
+			log_exch, log_key := routing.ExchangePerilTopic, fmt.Sprintf("%v.%v", routing.GameLogSlug, c_name)
+			for ; num > 0; num-- {
+				log := gamelogic.GetMaliciousLog()
+				data := routing.GameLog{CurrentTime: time.Now(), Message: log, Username: c_name}
+				if err = pubsub.PublishGob(new_ch, log_exch, log_key, data); err != nil {
+					fmt.Println("Couldn't send malicious log:", err)
+				}
+			}
+			fmt.Println("All logs sent successfully!")
 		} else if inp[0] == "quit" {
 			gamelogic.PrintQuit()
 			break

@@ -44,6 +44,11 @@ func main() {
 
 	for {
 		inp := gamelogic.GetInput()
+
+		if len(inp) == 0 {
+			continue
+		}
+
 		if inp[0] == "pause" {
 			fmt.Println("Sending pause message")
 			if err := send_msg(new_ch, routing.PlayingState{IsPaused: true}); err != nil {
