@@ -25,14 +25,12 @@ func main() {
 		log.Fatal("Couldn't finish ClientWelcome:", err)
 	}
 
-	exchange, queue_name, queue_type := "peril_direct", fmt.Sprintf("%v.%v", routing.PauseKey, c_name), pubsub.QueueTypeTransient
-
-	_, _, err = pubsub.DeclareAndBind(conn, exchange, queue_name, routing.PauseKey, queue_type)
-	if err != nil {
-		log.Fatal("Couldn't declare and bind a new queue:", err)
-	}
-
 	state := gamelogic.NewGameState(c_name)
+	pause_handler := handlerPause(state)
+	exchange, queue_name, queue_type := routing.ExchangePerilDirect, fmt.Sprintf("%v.%v", routing.PauseKey, c_name), pubsub.QueueTypeTransient
+	if err := pubsub.SubscribeJSON(conn, exchange, queue_name, routing.PauseKey, queue_type, pause_handler); err != nil {
+		log.Fatal("Couldn't subscribe to new message queue:", err)
+	}
 
 	for {
 		inp := gamelogic.GetInput()
