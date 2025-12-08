@@ -28,9 +28,14 @@ func main() {
 	}
 	defer conn.Close()
 
-	new_ch, _, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilTopic, routing.GameLogSlug, "game_logs.*", pubsub.QueueTypeDurable)
+	log_handler := handlerLogs()
+	if err := pubsub.SubscribeGob(conn, routing.ExchangePerilTopic, routing.GameLogSlug, fmt.Sprintf("%v.*", routing.GameLogSlug), pubsub.QueueTypeDurable, log_handler); err != nil {
+		log.Fatal("Couldn't subscribe to logs queue:", err)
+	}
+
+	new_ch, err := conn.Channel()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Couldn't create a channel:", err)
 	}
 
 	fmt.Println("Successfully connected to the server")

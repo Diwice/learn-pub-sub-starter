@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
@@ -38,11 +39,12 @@ func handlerMove(gs *gamelogic.GameState, chn *amqp.Channel) func(gamelogic.Army
 	}
 }
 
-func handlerWar(gs *gamelogic.GameState) func(gamelogic.RecognitionOfWar) pubsub.AckType {
+func handlerWar(gs *gamelogic.GameState, chn *amqp.Channel) func(gamelogic.RecognitionOfWar) pubsub.AckType {
 	return func(grow gamelogic.RecognitionOfWar) pubsub.AckType {
 		defer fmt.Print("> ")
 
-		outcome, _, _ := gs.HandleWar(grow)
+		initiator, player := grow.Attacker.Username, gs.GetPlayerSnap().Username
+		outcome, winner, loser := gs.HandleWar(grow)
 
 		switch outcome {
 		case gamelogic.WarOutcomeNotInvolved:
@@ -50,10 +52,19 @@ func handlerWar(gs *gamelogic.GameState) func(gamelogic.RecognitionOfWar) pubsub
 		case gamelogic.WarOutcomeNoUnits:
 			return pubsub.Ack
 		case gamelogic.WarOutcomeOpponentWon:
+			if err := publishLog(chn, fmt.Sprintf("%v won a war against %v", winner, loser), initiator, player); err != nil {
+				return pubsub.NackRequeue
+			}
 			return pubsub.Ack
 		case gamelogic.WarOutcomeYouWon:
+			if err := publishLog(chn, fmt.Sprintf("%v won a war against %v", winner, loser), initiator, player); err != nil {
+				return pubsub.NackRequeue
+			}
 			return pubsub.Ack
 		case gamelogic.WarOutcomeDraw:
+			if err := publishLog(chn, fmt.Sprintf("A war between %v and %v resulted in a draw", winner, loser), initiator, player); err != nil {
+				return pubsub.NackRequeue
+			}
 			return pubsub.Ack
 		}
 
@@ -61,4 +72,13 @@ func handlerWar(gs *gamelogic.GameState) func(gamelogic.RecognitionOfWar) pubsub
 
 		return pubsub.NackDiscard
 	}
+}
+
+func publishLog(chn *amqp.Channel, msg, initiator, username string) error {
+	exch, route_key, data := routing.ExchangePerilTopic, fmt.Sprintf("%v.%v", routing.GameLogSlug, initiator), routing.GameLog{CurrentTime: time.Now(), Message: msg, Username: username}
+	if err := pubsub.PublishGob(chn, exch, route_key, data); err != nil {
+		return err
+	}
+
+	return nil
 }

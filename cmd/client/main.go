@@ -43,7 +43,7 @@ func main() {
 		log.Fatal("Couldn't subscribe to the move queue:", err)
 	}
 
-	war_handler := handlerWar(state)
+	war_handler := handlerWar(state, new_ch)
 	war_exch, war_q_name, war_key, war_q_type := routing.ExchangePerilTopic, "war", routing.WarRecognitionsPrefix + ".*", pubsub.QueueTypeDurable
 	if err := pubsub.SubscribeJSON(conn, war_exch, war_q_name, war_key, war_q_type, war_handler); err != nil {
 		log.Fatal("Couldn't subscribe to the war queue:", err)
