@@ -25,6 +25,11 @@ func main() {
 		log.Fatal("Couldn't finish ClientWelcome:", err)
 	}
 
+	new_ch, err := conn.Channel()
+	if err != nil {
+		log.Fatal("Couldn't create a move channel:", err)
+	}
+
 	state := gamelogic.NewGameState(c_name)
 	pause_handler := handlerPause(state)
 	exchange, queue_name, queue_type := routing.ExchangePerilDirect, fmt.Sprintf("%v.%v", routing.PauseKey, c_name), pubsub.QueueTypeTransient
@@ -32,15 +37,16 @@ func main() {
 		log.Fatal("Couldn't subscribe to the pause queue:", err)
 	}
 
-	move_handler := handlerMove(state)
+	move_handler := handlerMove(state, new_ch)
 	move_exch, move_q_name, move_key, move_q_type := routing.ExchangePerilTopic, fmt.Sprintf("%v.%v", "army_moves", c_name), "army_moves.*", pubsub.QueueTypeTransient
 	if err := pubsub.SubscribeJSON(conn, move_exch, move_q_name, move_key, move_q_type, move_handler); err != nil {
 		log.Fatal("Couldn't subscribe to the move queue:", err)
 	}
 
-	new_ch, err := conn.Channel()
-	if err != nil {
-		log.Fatal("Couldn't create a move channel:", err)
+	war_handler := handlerWar(state)
+	war_exch, war_q_name, war_key, war_q_type := routing.ExchangePerilTopic, "war", routing.WarRecognitionsPrefix + ".*", pubsub.QueueTypeDurable
+	if err := pubsub.SubscribeJSON(conn, war_exch, war_q_name, war_key, war_q_type, war_handler); err != nil {
+		log.Fatal("Couldn't subscribe to the war queue:", err)
 	}
 
 	for {

@@ -90,17 +90,14 @@ func SubscribeJSON[T any](conn *amqp.Connection, exchange, queueName, key string
 
 			switch ack_type {
 			case Ack:
-				log.Println("Acknowledging.", elem)
 				if err := elem.Ack(false); err != nil {
 					log.Println("Couldn't acknowledge delivery message:", err)
 				}
 			case NackRequeue:
-				log.Println("Requeueing.", elem)
 				if err := elem.Nack(false, true); err != nil {
 					log.Println("Couldn't not acknowledge delivery message (requeue):", err)
 				}
 			case NackDiscard:
-				log.Println("Discarding.", elem)
 				if err := elem.Nack(false, false); err != nil {
 					log.Println("Couldn't not acknowledge delivery message (discard):", err)
 				}
